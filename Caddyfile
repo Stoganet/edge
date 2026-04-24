@@ -2,11 +2,7 @@
     email {$ACME_EMAIL}
 }
 
-auth.{$DOMAIN} {
-    reverse_proxy authelia:9091
-}
-
-netbird.{$DOMAIN} {
+netbird.stoganet.com {
     # Native gRPC (needs HTTP/2 cleartext to backend)
     @grpc header Content-Type application/grpc*
     reverse_proxy @grpc h2c://netbird-server:80
@@ -15,11 +11,7 @@ netbird.{$DOMAIN} {
     @backend path /relay* /ws-proxy/* /api/* /oauth2/*
     reverse_proxy @backend netbird-server:80
 
-    # Dashboard
-    forward_auth authelia:9091 {
-        uri /api/authz/forward-auth
-        copy_headers Remote-User Remote-Groups Remote-Email Remote-Name
-    }
+    # Dashboard (everything else)
     reverse_proxy /* netbird-dashboard:80
 }
 
@@ -27,6 +19,15 @@ ntfy.{$DOMAIN} {
     reverse_proxy ntfy:8082
 }
 
-molly.{$DOMAIN} {
-    reverse_proxy mollysocket:8091
+jellyfin.{$DOMAIN} {
+    log {
+        output file /var/log/caddy/jellyfin.log
+        format json
+    }
+    reverse_proxy https://{$NETBIRD_HOME_IP} {
+        header_up Host jellyfin.{$DOMAIN}
+        transport http {
+            tls_server_name jellyfin.{$DOMAIN}
+        }
+    }
 }

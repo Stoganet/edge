@@ -1,0 +1,6 @@
+.env
+netbird/config.yaml
+ntfy_data/
+ntfy_cache/
+caddy_data/
+caddy_config/
