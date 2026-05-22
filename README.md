@@ -6,13 +6,7 @@ Public-facing edge proxy for the Stoganet home infrastructure. Runs on a small V
 - Hosts the self-hosted NetBird control plane (management, signal, relay, STUN, dashboard, embedded IdP)
 - Reverse-proxies the few public services (Jellyfin, Jellyseerr) back to the home box over the NetBird overlay
 
-The home box (see [Stoganet/infra](https://github.com/Stoganet/infra)) and all of the \*arr stack stay behind NetBird — they are never directly exposed to the internet.
-
-## Repos in this org
-
-- **[infra](https://github.com/Stoganet/infra)** — home server compose stack, backup, Traefik
-- **[stogad](https://github.com/Stoganet/stogad)** — native daemon on the home box
-- **[edge](https://github.com/Stoganet/edge)** (this repo) — public VPS edge
+The home box and all of the \*arr stack stay behind NetBird — they are never directly exposed to the internet.
 
 ## Layout
 
