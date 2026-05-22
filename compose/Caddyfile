@@ -15,10 +15,6 @@ netbird.stoganet.com {
     reverse_proxy /* netbird-dashboard:80
 }
 
-ntfy.{$DOMAIN} {
-    reverse_proxy ntfy:8082
-}
-
 jellyfin.{$DOMAIN} {
     log {
         output file /var/log/caddy/jellyfin.log
@@ -28,6 +24,19 @@ jellyfin.{$DOMAIN} {
         header_up Host jellyfin.{$DOMAIN}
         transport http {
             tls_server_name jellyfin.{$DOMAIN}
+        }
+    }
+}
+
+seerr.{$DOMAIN} {
+    log {
+        output file /var/log/caddy/seerr.log
+        format json
+    }
+    reverse_proxy https://{$NETBIRD_HOME_IP} {
+        header_up Host seerr.{$DOMAIN}
+        transport http {
+            tls_server_name seerr.{$DOMAIN}
         }
     }
 }

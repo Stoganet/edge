@@ -1,6 +1,7 @@
+# Secrets / live config
 .env
-netbird/config.yaml
-ntfy_data/
-ntfy_cache/
-caddy_data/
-caddy_config/
+compose/netbird/config.yaml
+
+# Live runtime data (host bind mounts)
+compose/caddy_data/
+compose/caddy_config/
