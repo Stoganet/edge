@@ -1,0 +1,74 @@
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  compose-validate:
+    name: compose validate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          fetch-depth: 1
+
+      - name: Prepare stub env and placeholder files
+        run: |
+          cp compose/services.env.example compose/.env
+          touch compose/netbird/config.yaml compose/netbird/dashboard.env
+
+      - name: Validate edge stack
+        run: docker compose -f compose/docker-compose.yml config -q
+
+      - name: Validate netbird stack
+        run: docker compose -f compose/netbird/docker-compose.yml config -q
+
+  caddy-check:
+    name: caddy fmt + validate
+    runs-on: ubuntu-latest
+    container: caddy:2-alpine
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          fetch-depth: 1
+
+      - name: caddy fmt --diff
+        run: caddy fmt --diff compose/Caddyfile
+
+      - name: caddy validate
+        shell: sh
+        run: |
+          set -a
+          . compose/services.env.example
+          set +a
+          caddy validate --adapter caddyfile --config compose/Caddyfile
+
+  shellcheck:
+    name: shellcheck
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          fetch-depth: 1
+
+      - name: Run shellcheck
+        uses: ludeeus/action-shellcheck@00cae500b08a931fb5698e11e79bfbd38e612a38 # 2.0.0
+
+  gitleaks:
+    name: gitleaks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          fetch-depth: 0
+
+      - name: Run gitleaks
+        uses: gitleaks/gitleaks-action@ff98106e4c7b2bc287b24eaf42907196329070c7 # v2.3.9
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

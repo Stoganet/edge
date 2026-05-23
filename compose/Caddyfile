@@ -1,42 +1,42 @@
 {
-    email {$ACME_EMAIL}
+	email {$ACME_EMAIL}
 }
 
 netbird.stoganet.com {
-    # Native gRPC (needs HTTP/2 cleartext to backend)
-    @grpc header Content-Type application/grpc*
-    reverse_proxy @grpc h2c://netbird-server:80
+	# Native gRPC (needs HTTP/2 cleartext to backend)
+	@grpc header Content-Type application/grpc*
+	reverse_proxy @grpc h2c://netbird-server:80
 
-    # Combined server paths (relay, signal, management, OAuth2)
-    @backend path /relay* /ws-proxy/* /api/* /oauth2/*
-    reverse_proxy @backend netbird-server:80
+	# Combined server paths (relay, signal, management, OAuth2)
+	@backend path /relay* /ws-proxy/* /api/* /oauth2/*
+	reverse_proxy @backend netbird-server:80
 
-    # Dashboard (everything else)
-    reverse_proxy /* netbird-dashboard:80
+	# Dashboard (everything else)
+	reverse_proxy /* netbird-dashboard:80
 }
 
 jellyfin.{$DOMAIN} {
-    log {
-        output file /var/log/caddy/jellyfin.log
-        format json
-    }
-    reverse_proxy https://{$NETBIRD_HOME_IP} {
-        header_up Host jellyfin.{$DOMAIN}
-        transport http {
-            tls_server_name jellyfin.{$DOMAIN}
-        }
-    }
+	log {
+		output file /var/log/caddy/jellyfin.log
+		format json
+	}
+	reverse_proxy https://{$NETBIRD_HOME_IP} {
+		header_up Host jellyfin.{$DOMAIN}
+		transport http {
+			tls_server_name jellyfin.{$DOMAIN}
+		}
+	}
 }
 
 seerr.{$DOMAIN} {
-    log {
-        output file /var/log/caddy/seerr.log
-        format json
-    }
-    reverse_proxy https://{$NETBIRD_HOME_IP} {
-        header_up Host seerr.{$DOMAIN}
-        transport http {
-            tls_server_name seerr.{$DOMAIN}
-        }
-    }
+	log {
+		output file /var/log/caddy/seerr.log
+		format json
+	}
+	reverse_proxy https://{$NETBIRD_HOME_IP} {
+		header_up Host seerr.{$DOMAIN}
+		transport http {
+			tls_server_name seerr.{$DOMAIN}
+		}
+	}
 }
