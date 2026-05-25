@@ -6,7 +6,7 @@
     "helpers:pinGitHubActionDigests"
   ],
   "timezone": "Europe/Helsinki",
-  "schedule": ["after 2am and before 6am every weekday"],
+  "schedule": ["* 3-4 * * 6"],
   "platformAutomerge": false,
   "dependencyDashboard": true,
   "packageRules": [
