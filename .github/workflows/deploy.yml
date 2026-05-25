@@ -1,0 +1,209 @@
+name: Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Ref (branch / tag / SHA) to deploy. Defaults to main."
+        required: false
+        default: "main"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      NB_VERSION: "0.71.4"
+      NB_SHA256: "a7c55f50cafb4034425135253f96a6028edfceb723d09e260bb16eaf4c5a82c3"
+      NB_MGMT_URL: "https://netbird.stoganet.com"
+      HEALTHCHECK_URL_CADDY: "https://netbird.stoganet.com/"
+      HEALTHCHECK_URL_API: "https://netbird.stoganet.com/api/"
+    steps:
+      - name: Install netbird CLI
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP"
+          curl -fsSL -o netbird.tar.gz \
+            "https://github.com/netbirdio/netbird/releases/download/v${NB_VERSION}/netbird_${NB_VERSION}_linux_amd64.tar.gz"
+          echo "${NB_SHA256}  netbird.tar.gz" | sha256sum -c -
+          tar -xzf netbird.tar.gz netbird
+          sudo install -m 0755 netbird /usr/local/bin/netbird
+          netbird version
+
+      - name: Join NetBird overlay
+        env:
+          NB_SETUP_KEY: ${{ secrets.NB_SETUP_KEY }}
+        run: |
+          set -euo pipefail
+          sudo netbird service install || true
+          sudo netbird service start
+          sudo netbird up \
+            --setup-key "$NB_SETUP_KEY" \
+            --management-url "$NB_MGMT_URL" \
+            --hostname "gha-deploy-${{ github.run_id }}"
+          for _ in $(seq 1 30); do
+            if ip -4 -o addr show wt0 2>/dev/null | grep -q inet; then
+              echo "Overlay up: $(ip -4 -o addr show wt0 | awk '{print $4}')"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "::error::NetBird overlay did not come up within 30s"
+          exit 1
+
+      - name: Set up SSH to deploy@vps
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          VPS_OVERLAY_IP: ${{ secrets.VPS_OVERLAY_IP }}
+          VPS_SSH_HOST_KEY: ${{ secrets.VPS_SSH_HOST_KEY }}
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          # ssh-keyscan's first field is whatever hostname was scanned; fields 2 and 3
+          # (algo + key material) are properties of the daemon. Re-key by the overlay IP.
+          printf '%s %s\n' "$VPS_OVERLAY_IP" "$(echo "$VPS_SSH_HOST_KEY" | awk '{print $2, $3}')" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+
+      - name: Resolve target SHA
+        id: target
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          REF: ${{ inputs.ref }}
+        run: |
+          set -euo pipefail
+          SHA=$(gh api "repos/${REPO}/commits/${REF}" --jq .sha)
+          echo "Target SHA: $SHA"
+          echo "sha=$SHA" >> "$GITHUB_OUTPUT"
+
+      - name: Capture previous SHA on VPS
+        id: previous
+        env:
+          VPS_OVERLAY_IP: ${{ secrets.VPS_OVERLAY_IP }}
+        run: |
+          set -euo pipefail
+          PREV=$(ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes \
+            "deploy@${VPS_OVERLAY_IP}" \
+            'git -C /srv/stoganet rev-parse HEAD')
+          echo "Previous SHA on VPS: $PREV"
+          echo "sha=$PREV" >> "$GITHUB_OUTPUT"
+
+      - name: Deploy
+        id: deploy
+        env:
+          VPS_OVERLAY_IP: ${{ secrets.VPS_OVERLAY_IP }}
+          TARGET_SHA: ${{ steps.target.outputs.sha }}
+        run: |
+          set -euo pipefail
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes \
+            "deploy@${VPS_OVERLAY_IP}" \
+            "/srv/stoganet/bin/deploy.sh '${TARGET_SHA}'"
+
+      - name: Healthcheck
+        id: healthcheck
+        run: |
+          set -euo pipefail
+          DEADLINE=$(( $(date +%s) + 120 ))
+          while [ "$(date +%s)" -lt "$DEADLINE" ]; do
+            CADDY_OK=0
+            API_OK=0
+            curl -fsS --max-time 5 "$HEALTHCHECK_URL_CADDY" >/dev/null && CADDY_OK=1 || true
+            curl -fsS --max-time 5 "$HEALTHCHECK_URL_API"   >/dev/null && API_OK=1   || true
+            if [ "$CADDY_OK" = 1 ] && [ "$API_OK" = 1 ]; then
+              echo "Healthcheck passed (caddy=$CADDY_OK api=$API_OK)"
+              exit 0
+            fi
+            echo "Waiting (caddy=$CADDY_OK api=$API_OK)..."
+            sleep 5
+          done
+          echo "::error::Healthcheck failed within 120s"
+          exit 1
+
+      - name: Rollback (on deploy or healthcheck failure)
+        id: rollback
+        if: failure() && steps.previous.outputs.sha != ''
+        env:
+          VPS_OVERLAY_IP: ${{ secrets.VPS_OVERLAY_IP }}
+          PREVIOUS_SHA: ${{ steps.previous.outputs.sha }}
+          TARGET_SHA: ${{ steps.target.outputs.sha }}
+        run: |
+          set -euo pipefail
+          if [ "$PREVIOUS_SHA" = "$TARGET_SHA" ]; then
+            echo "Previous SHA equals target SHA; nothing to roll back to."
+            echo "outcome=no-rollback-possible" >> "$GITHUB_OUTPUT"
+            exit 1
+          fi
+          echo "Rolling back to $PREVIOUS_SHA"
+          if ! ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes \
+            "deploy@${VPS_OVERLAY_IP}" \
+            "/srv/stoganet/bin/rollback.sh '${PREVIOUS_SHA}'"; then
+            echo "::error::Rollback script failed"
+            echo "outcome=rollback-failed" >> "$GITHUB_OUTPUT"
+            exit 1
+          fi
+          DEADLINE=$(( $(date +%s) + 60 ))
+          while [ "$(date +%s)" -lt "$DEADLINE" ]; do
+            if curl -fsS --max-time 5 "$HEALTHCHECK_URL_CADDY" >/dev/null \
+            && curl -fsS --max-time 5 "$HEALTHCHECK_URL_API"   >/dev/null; then
+              echo "outcome=rolled-back" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "::error::Healthcheck failed on rolled-back state"
+          echo "outcome=rollback-failed" >> "$GITHUB_OUTPUT"
+          exit 1
+
+      - name: Diagnostics (on any failure)
+        if: failure()
+        env:
+          VPS_OVERLAY_IP: ${{ secrets.VPS_OVERLAY_IP }}
+        run: |
+          {
+            echo "## Diagnostics"
+            echo
+            ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes -o ConnectTimeout=10 \
+              "deploy@${VPS_OVERLAY_IP}" /srv/stoganet/bin/diagnostics.sh 2>&1 \
+              || echo "_diagnostics.sh failed: $?_"
+          } | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Summarize outcome
+        if: always()
+        env:
+          TARGET_SHA: ${{ steps.target.outputs.sha }}
+          PREVIOUS_SHA: ${{ steps.previous.outputs.sha }}
+          DEPLOY_OUTCOME: ${{ steps.deploy.outcome }}
+          HEALTHCHECK_OUTCOME: ${{ steps.healthcheck.outcome }}
+          ROLLBACK_RESULT: ${{ steps.rollback.outputs.outcome }}
+        run: |
+          set -euo pipefail
+          if [ "$DEPLOY_OUTCOME" = "success" ] && [ "$HEALTHCHECK_OUTCOME" = "success" ]; then
+            OUTCOME="deploy-ok"
+            SHA="$TARGET_SHA"
+          elif [ "$ROLLBACK_RESULT" = "rolled-back" ]; then
+            OUTCOME="rolled-back"
+            SHA="$PREVIOUS_SHA"
+          else
+            OUTCOME="MANUAL_INTERVENTION_REQUIRED"
+            SHA="unknown"
+          fi
+          {
+            echo "## Outcome: $OUTCOME"
+            echo
+            echo "- Target SHA: \`$TARGET_SHA\`"
+            echo "- Previous SHA: \`$PREVIOUS_SHA\`"
+            echo "- Running SHA after this run: \`$SHA\`"
+          } | tee -a "$GITHUB_STEP_SUMMARY"
+          if [ "$OUTCOME" != "deploy-ok" ]; then
+            exit 1
+          fi
