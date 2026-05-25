@@ -73,6 +73,34 @@ jobs:
           # (algo + key material) are properties of the daemon. Re-key by the overlay IP.
           printf '%s %s\n' "$VPS_OVERLAY_IP" "$(echo "$VPS_SSH_HOST_KEY" | awk '{print $2, $3}')" > ~/.ssh/known_hosts
           chmod 600 ~/.ssh/known_hosts
+          cat > ~/.ssh/config <<EOF
+          Host vps
+            HostName ${VPS_OVERLAY_IP}
+            User deploy
+            IdentityFile ~/.ssh/deploy_key
+            IdentitiesOnly yes
+            StrictHostKeyChecking yes
+            UserKnownHostsFile ~/.ssh/known_hosts
+            ConnectTimeout 15
+            ConnectionAttempts 5
+            ServerAliveInterval 15
+            ServerAliveCountMax 4
+            TCPKeepAlive yes
+          EOF
+          chmod 600 ~/.ssh/config
+
+      - name: Wait for SSH over overlay
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 30); do
+            if ssh -o BatchMode=yes -o ConnectTimeout=5 vps true 2>/dev/null; then
+              echo "SSH reachable after ${i} attempt(s)"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "::error::SSH to vps over overlay not reachable within 60s"
+          exit 1
 
       - name: Resolve target SHA
         id: target
