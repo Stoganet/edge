@@ -48,6 +48,13 @@ echo "==> Creating /var/log/caddy"
 sudo mkdir -p /var/log/caddy
 sudo chown 1000:1000 /var/log/caddy
 
+# Caddy runs as root inside the container with cap_drop: ALL, which removes
+# DAC_OVERRIDE — so root-in-container cannot bypass host file permissions.
+# The bind-mounted data/config dirs must therefore be owned by root on the host.
+echo "==> Ensuring caddy_data and caddy_config are root-owned"
+sudo mkdir -p "$COMPOSE_DIR/caddy_data" "$COMPOSE_DIR/caddy_config"
+sudo chown -R root:root "$COMPOSE_DIR/caddy_data" "$COMPOSE_DIR/caddy_config"
+
 echo "==> Done. Next:"
 echo "    1. cp services.env.example .env  &&  \$EDITOR .env"
 echo "    2. cp netbird/config.yaml.example netbird/config.yaml  &&  \$EDITOR netbird/config.yaml"
