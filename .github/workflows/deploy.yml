@@ -48,15 +48,7 @@ jobs:
             --setup-key "$NB_SETUP_KEY" \
             --management-url "$NB_MGMT_URL" \
             --hostname "gha-deploy-${{ github.run_id }}"
-          for _ in $(seq 1 30); do
-            if ip -4 -o addr show wt0 2>/dev/null | grep -q inet; then
-              echo "Overlay up: $(ip -4 -o addr show wt0 | awk '{print $4}')"
-              exit 0
-            fi
-            sleep 1
-          done
-          echo "::error::NetBird overlay did not come up within 30s"
-          exit 1
+          echo "Overlay up: $(ip -4 -o addr show wt0 | awk '/inet / {print $4}')"
 
       - name: Set up SSH to deploy@vps
         env:
@@ -69,8 +61,6 @@ jobs:
           chmod 700 ~/.ssh
           printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
-          # VPS_SSH_HOST_KEY must be "<algo> <key>" (e.g. "ssh-ed25519 AAAA..."),
-          # with no hostname prefix and no trailing comment. We prepend the overlay IP.
           printf '%s %s\n' "$VPS_OVERLAY_IP" "$VPS_SSH_HOST_KEY" > ~/.ssh/known_hosts
           chmod 600 ~/.ssh/known_hosts
           cat > ~/.ssh/config <<EOF
@@ -92,14 +82,14 @@ jobs:
       - name: Wait for SSH over overlay
         run: |
           set -euo pipefail
-          for i in $(seq 1 30); do
-            if ssh -o BatchMode=yes -o ConnectTimeout=5 vps true; then
+          for i in $(seq 1 10); do
+            if ssh -o BatchMode=yes -o ConnectTimeout=3 vps true; then
               echo "SSH reachable after ${i} attempt(s)"
               exit 0
             fi
             sleep 2
           done
-          echo "::error::SSH to vps over overlay not reachable within 60s"
+          echo "::error::SSH to vps over overlay not reachable within 20s"
           exit 1
 
       - name: Resolve target SHA
@@ -141,12 +131,17 @@ jobs:
         id: healthcheck
         run: |
           set -euo pipefail
-          DEADLINE=$(( $(date +%s) + 120 ))
+          probe() {
+            local code
+            code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 5 "$1" || echo 000)
+            [ "$code" != "000" ] && [ "$code" -lt 500 ]
+          }
+          DEADLINE=$(( $(date +%s) + 30 ))
           while [ "$(date +%s)" -lt "$DEADLINE" ]; do
             CADDY_OK=0
             API_OK=0
-            curl -fsS --max-time 5 "$HEALTHCHECK_URL_CADDY" >/dev/null && CADDY_OK=1 || true
-            curl -fsS --max-time 5 "$HEALTHCHECK_URL_API"   >/dev/null && API_OK=1   || true
+            probe "$HEALTHCHECK_URL_CADDY" && CADDY_OK=1 || true
+            probe "$HEALTHCHECK_URL_API"   && API_OK=1   || true
             if [ "$CADDY_OK" = 1 ] && [ "$API_OK" = 1 ]; then
               echo "Healthcheck passed (caddy=$CADDY_OK api=$API_OK)"
               exit 0
@@ -154,7 +149,7 @@ jobs:
             echo "Waiting (caddy=$CADDY_OK api=$API_OK)..."
             sleep 5
           done
-          echo "::error::Healthcheck failed within 120s"
+          echo "::error::Healthcheck failed within 30s"
           exit 1
 
       - name: Rollback (on deploy or healthcheck failure)
@@ -179,10 +174,14 @@ jobs:
             echo "outcome=rollback-failed" >> "$GITHUB_OUTPUT"
             exit 1
           fi
-          DEADLINE=$(( $(date +%s) + 60 ))
+          probe() {
+            local code
+            code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 5 "$1" || echo 000)
+            [ "$code" != "000" ] && [ "$code" -lt 500 ]
+          }
+          DEADLINE=$(( $(date +%s) + 30 ))
           while [ "$(date +%s)" -lt "$DEADLINE" ]; do
-            if curl -fsS --max-time 5 "$HEALTHCHECK_URL_CADDY" >/dev/null \
-            && curl -fsS --max-time 5 "$HEALTHCHECK_URL_API"   >/dev/null; then
+            if probe "$HEALTHCHECK_URL_CADDY" && probe "$HEALTHCHECK_URL_API"; then
               echo "outcome=rolled-back" >> "$GITHUB_OUTPUT"
               exit 0
             fi
