@@ -40,3 +40,16 @@ seerr.{$DOMAIN} {
 		}
 	}
 }
+
+api.{$DOMAIN} {
+	log {
+		output file /var/log/caddy/api-proxy.log
+		format json
+	}
+	reverse_proxy https://{$NETBIRD_HOME_IP} {
+		header_up Host api.{$DOMAIN}
+		transport http {
+			tls_server_name api.{$DOMAIN}
+		}
+	}
+}
