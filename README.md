@@ -8,6 +8,29 @@ Public-facing edge proxy for the Stoganet home infrastructure. Runs on a small V
 
 The home box and all of the \*arr stack stay behind NetBird — they are never directly exposed to the internet.
 
+```mermaid
+graph TD
+    Internet((Internet))
+
+    subgraph VPS["Edge VPS · public"]
+        Caddy["Caddy\nTLS terminator · reverse proxy"]
+        NB_CP["NetBird control plane\nmgmt · signal · relay · STUN · IdP"]
+        NB_Agent["NetBird agent\n(peer on overlay)"]
+    end
+
+    subgraph Home["Home box · private"]
+        Traefik["Traefik"]
+        Services["Jellyfin · Jellyseerr · *arr\nqBittorrent · Portainer · …"]
+    end
+
+    Internet -->|"80 / 443"| Caddy
+    Internet -->|"3478 udp"| NB_CP
+    Caddy -->|"netbird.stoganet.com"| NB_CP
+    Caddy -->|"jellyfin / jellyseerr\n(public exceptions)"| NB_Agent
+    NB_Agent <-->|"NetBird overlay · WireGuard"| Traefik
+    Traefik --> Services
+```
+
 ## Layout
 
 ```

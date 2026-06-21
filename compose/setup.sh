@@ -32,6 +32,25 @@ if ! sudo netbird status >/dev/null 2>&1; then
         --setup-key "$NB_SETUP_KEY"
 fi
 
+echo "==> Hardening SSH"
+SSHD_DROP_IN=/etc/ssh/sshd_config.d/99-stoganet-hardening.conf
+sudo tee "$SSHD_DROP_IN" > /dev/null <<'SSHEOF'
+PasswordAuthentication no
+PermitRootLogin no
+KbdInteractiveAuthentication no
+ChallengeResponseAuthentication no
+PubkeyAuthentication yes
+AuthorizedKeysFile .ssh/authorized_keys
+SSHEOF
+sudo chmod 644 "$SSHD_DROP_IN"
+# Validate before reloading to avoid locking ourselves out
+if sudo sshd -t; then
+    sudo systemctl reload sshd
+    echo "    SSH hardened and reloaded."
+else
+    echo "    sshd config test failed — drop-in written but NOT reloaded. Fix manually." >&2
+fi
+
 echo "==> Configuring UFW"
 if command -v ufw >/dev/null; then
     sudo ufw allow 22/tcp
