@@ -11,7 +11,7 @@
   "dependencyDashboard": true,
   "packageRules": [
     {
-      "matchManagers": ["docker-compose"],
+      "matchManagers": ["docker-compose", "dockerfile"],
       "matchPackageNames": ["caddy"],
       "automerge": true,
       "matchUpdateTypes": ["digest", "patch", "minor"]

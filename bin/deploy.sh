@@ -13,6 +13,7 @@ git checkout --quiet "$TARGET_SHA"
 
 cd /srv/stoganet/compose
 docker compose pull
+docker compose build --pull
 docker compose up -d
 
 cd /srv/stoganet/compose/netbird

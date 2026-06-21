@@ -20,6 +20,13 @@ jellyfin.{$DOMAIN} {
 		output file /var/log/caddy/jellyfin.log
 		format json
 	}
+	rate_limit {
+		zone jellyfin {
+			key    {remote_host}
+			events 60
+			window 1m
+		}
+	}
 	reverse_proxy https://{$NETBIRD_HOME_IP} {
 		header_up Host jellyfin.{$DOMAIN}
 		transport http {
@@ -33,6 +40,13 @@ seerr.{$DOMAIN} {
 		output file /var/log/caddy/seerr.log
 		format json
 	}
+	rate_limit {
+		zone seerr {
+			key    {remote_host}
+			events 30
+			window 1m
+		}
+	}
 	reverse_proxy https://{$NETBIRD_HOME_IP} {
 		header_up Host seerr.{$DOMAIN}
 		transport http {
@@ -45,6 +59,13 @@ api.{$DOMAIN} {
 	log {
 		output file /var/log/caddy/api-proxy.log
 		format json
+	}
+	rate_limit {
+		zone api {
+			key    {remote_host}
+			events 60
+			window 1m
+		}
 	}
 	reverse_proxy https://{$NETBIRD_HOME_IP} {
 		header_up Host api.{$DOMAIN}
