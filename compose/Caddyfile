@@ -22,7 +22,7 @@ jellyfin.{$DOMAIN} {
 	}
 	rate_limit {
 		zone jellyfin {
-			key    {remote_host}
+			key {remote_host}
 			events 60
 			window 1m
 		}
@@ -42,7 +42,7 @@ seerr.{$DOMAIN} {
 	}
 	rate_limit {
 		zone seerr {
-			key    {remote_host}
+			key {remote_host}
 			events 30
 			window 1m
 		}
@@ -62,7 +62,7 @@ api.{$DOMAIN} {
 	}
 	rate_limit {
 		zone api {
-			key    {remote_host}
+			key {remote_host}
 			events 60
 			window 1m
 		}
