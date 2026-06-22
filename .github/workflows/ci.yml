@@ -29,7 +29,6 @@ jobs:
   caddy-check:
     name: caddy fmt + validate
     runs-on: ubuntu-latest
-    container: caddy:2-alpine
     steps:
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
@@ -37,15 +36,20 @@ jobs:
           fetch-depth: 1
 
       - name: caddy fmt --diff
-        run: caddy fmt --diff compose/Caddyfile
+        run: |
+          docker run --rm \
+            -v "$PWD/compose/Caddyfile:/etc/caddy/Caddyfile:ro" \
+            caddy:2-alpine caddy fmt --diff /etc/caddy/Caddyfile
+
+      - name: Build custom Caddy image
+        run: docker build -t caddy-custom compose/
 
       - name: caddy validate
-        shell: sh
         run: |
-          set -a
-          . compose/services.env.example
-          set +a
-          caddy validate --adapter caddyfile --config compose/Caddyfile
+          docker run --rm \
+            -v "$PWD/compose/Caddyfile:/etc/caddy/Caddyfile:ro" \
+            --env-file compose/services.env.example \
+            caddy-custom caddy validate --adapter caddyfile --config /etc/caddy/Caddyfile
 
   shellcheck:
     name: shellcheck
