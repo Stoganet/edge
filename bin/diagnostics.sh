@@ -19,13 +19,3 @@ docker compose -f /srv/stoganet/compose/netbird/docker-compose.yml ps
 echo '```'
 echo
 
-echo "### docker logs --tail 50 caddy"
-echo '```'
-docker logs --tail 50 caddy
-echo '```'
-echo
-
-echo "### docker logs --tail 50 netbird-server"
-echo '```'
-docker logs --tail 50 netbird-server
-echo '```'
