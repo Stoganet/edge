@@ -1,7 +1,7 @@
 services:
   # UI dashboard
   dashboard:
-    image: netbirdio/dashboard:latest
+    image: netbirdio/dashboard:latest@sha256:9f9d619245eeaeea4675960c86e24187079dbf329a652f36532cf065b2c4a97e
     container_name: netbird-dashboard
     restart: unless-stopped
     networks: [netbird, proxy-net]
@@ -17,7 +17,7 @@ services:
 
   # Combined server (Management + Signal + Relay + STUN)
   netbird-server:
-    image: netbirdio/netbird-server:latest
+    image: netbirdio/netbird-server:latest@sha256:efa4e50dbc556ccd7bdc5b0d977ff29fe21bdee3b7e312cba6e3fa53bbeec60b
     container_name: netbird-server
     restart: unless-stopped
     networks: [netbird, proxy-net]
