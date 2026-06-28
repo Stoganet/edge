@@ -43,7 +43,7 @@ seerr.{$DOMAIN} {
 	rate_limit {
 		zone seerr {
 			key {remote_host}
-			events 30
+			events 100
 			window 1m
 		}
 	}
