@@ -40,13 +40,6 @@ seerr.{$DOMAIN} {
 		output file /var/log/caddy/seerr.log
 		format json
 	}
-	rate_limit {
-		zone seerr {
-			key {remote_host}
-			events 100
-			window 1m
-		}
-	}
 	reverse_proxy https://{$NETBIRD_HOME_IP} {
 		header_up Host seerr.{$DOMAIN}
 		transport http {
