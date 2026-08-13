@@ -21,9 +21,12 @@ jellyfin.{$DOMAIN} {
 		format json
 	}
 	rate_limit {
-		zone jellyfin {
+		zone jellyfin_auth {
 			key {remote_host}
-			events 60
+			match {
+				path /Users/AuthenticateByName /emby/Users/AuthenticateByName /Users/AuthenticateWithQuickConnect /QuickConnect/Authorize /QuickConnect/Initiate
+			}
+			events 10
 			window 1m
 		}
 	}
@@ -39,6 +42,16 @@ seerr.{$DOMAIN} {
 	log {
 		output file /var/log/caddy/seerr.log
 		format json
+	}
+	rate_limit {
+		zone seerr_auth {
+			key {remote_host}
+			match {
+				path /api/v1/auth/jellyfin /api/v1/auth/local /api/v1/auth/plex /api/v1/auth/reset-password
+			}
+			events 10
+			window 1m
+		}
 	}
 	reverse_proxy https://{$NETBIRD_HOME_IP} {
 		header_up Host seerr.{$DOMAIN}
