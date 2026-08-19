@@ -17,7 +17,7 @@ services:
 
   # Combined server (Management + Signal + Relay + STUN)
   netbird-server:
-    image: netbirdio/netbird-server:latest@sha256:efa4e50dbc556ccd7bdc5b0d977ff29fe21bdee3b7e312cba6e3fa53bbeec60b
+    image: netbirdio/netbird-server:latest@sha256:f0317a42ceeed4ea14c393bd975c2e801517e33efb0d5ace4258d8dcfdbe0689
     container_name: netbird-server
     restart: unless-stopped
     networks: [netbird, proxy-net]
