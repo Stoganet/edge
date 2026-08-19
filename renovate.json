@@ -7,11 +7,13 @@
   ],
   "timezone": "Europe/Helsinki",
   "platformAutomerge": false,
-  "dependencyDashboard": false,
+  "dependencyDashboard": true,
+  "prHourlyLimit": 0,
   "packageRules": [
     {
       "matchManagers": ["docker-compose", "dockerfile"],
       "matchPackageNames": ["caddy"],
+      "groupName": "caddy",
       "automerge": true,
       "matchUpdateTypes": ["digest", "patch", "minor"]
     },
@@ -23,6 +25,7 @@
     },
     {
       "matchManagers": ["github-actions"],
+      "groupName": "github-actions",
       "automerge": true,
       "matchUpdateTypes": ["digest", "patch", "minor"]
     }
