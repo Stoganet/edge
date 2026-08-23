@@ -18,16 +18,26 @@
       "matchUpdateTypes": ["digest", "patch", "minor"]
     },
     {
-      "matchManagers": ["docker-compose"],
-      "matchPackageNames": ["netbirdio/**"],
-      "automerge": false,
-      "labels": ["review-needed"]
-    },
-    {
       "matchManagers": ["github-actions"],
       "groupName": "github-actions",
       "automerge": true,
       "matchUpdateTypes": ["digest", "patch", "minor"]
+    },
+    {
+      "matchManagers": ["custom.regex"],
+      "matchDepNames": ["netbirdio/netbird"],
+      "automerge": false,
+      "labels": ["review-needed"]
+    }
+  ],
+  "customManagers": [
+    {
+      "customType": "regex",
+      "fileMatch": ["^\\.github/workflows/deploy\\.yml$"],
+      "matchStrings": ["NB_VERSION:\\s*\"(?<currentValue>[^\"]+)\""],
+      "datasourceTemplate": "github-releases",
+      "depNameTemplate": "netbirdio/netbird",
+      "extractVersionTemplate": "^v(?<version>.*)$"
     }
   ]
 }
