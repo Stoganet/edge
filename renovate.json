@@ -24,8 +24,16 @@
       "matchUpdateTypes": ["digest", "patch", "minor"]
     },
     {
-      "matchManagers": ["custom.regex"],
-      "matchDepNames": ["netbirdio/netbird"],
+      "matchManagers": ["docker-compose", "dockerfile"],
+      "excludePackageNames": ["caddy", "netbirdio/netbird-server", "netbirdio/dashboard"],
+      "groupName": "all other non-major dependencies",
+      "automerge": true,
+      "matchUpdateTypes": ["digest", "patch", "minor"]
+    },
+    {
+      "matchManagers": ["docker-compose", "dockerfile", "custom.regex"],
+      "matchDepNames": ["netbirdio/netbird", "netbirdio/netbird-server", "netbirdio/dashboard"],
+      "groupName": "netbird",
       "automerge": false,
       "labels": ["review-needed"]
     }
