@@ -3,7 +3,7 @@ services:
     image: netbirdio/dashboard:latest@sha256:fa2d8b02a81761e4d2a22df4041d13316b7635f1e93273eafeb53d4991e55b5a
     container_name: netbird-dashboard
     restart: unless-stopped
-    networks: [netbird, proxy-net]
+    networks: [netbird]
     ports:
       - '127.0.0.1:8080:80'
     env_file:
@@ -18,7 +18,7 @@ services:
     image: netbirdio/netbird-server:latest@sha256:d1da0c0179c9e6f2ab7b48be54d06341b11037855a9426b9f2536aa79f13360b
     container_name: netbird-server
     restart: unless-stopped
-    networks: [netbird, proxy-net]
+    networks: [netbird]
     ports:
       - '127.0.0.1:8081:80'
       - '3478:3478/udp'
@@ -36,11 +36,7 @@ services:
     image: netbirdio/reverse-proxy:latest@sha256:f18745746dfc797dfc60418b9c2714671aee0e020317df47fb22f37329c2dd54
     container_name: netbird-reverse-proxy
     restart: unless-stopped
-    profiles: ["cutover"]
     networks: [netbird]
-    ports:
-      - '${PROXY_HTTP_PORT:-8090}:80'
-      - '${PROXY_HTTPS_PORT:-8444}:443'
     environment:
       NB_PROXY_CERTIFICATE_DIRECTORY: /certs
       NB_PROXY_MANAGEMENT_ADDRESS: "http://netbird-server:80"
@@ -59,11 +55,46 @@ services:
         max-size: "500m"
         max-file: "2"
 
+  traefik:
+    image: traefik:v3.7.13@sha256:1c32e7c368204fd72812152ebdd2ac0425993df6fd982317deb02e48f2d5423c
+    container_name: traefik
+    restart: unless-stopped
+    networks: [netbird]
+    mem_limit: 256m
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
+    security_opt:
+      - no-new-privileges:true
+    ports:
+      - "80:80"
+      - "443:443"
+      - "${NETBIRD_MESH_IP:?NETBIRD_MESH_IP must be set}:8080:8080"
+    command:
+      - "--entryPoints.web.address=:80"
+      - "--entryPoints.websecure.address=:443"
+      - "--entryPoints.dashboard.address=:8080"
+      - "--api.dashboard=true"
+      - "--providers.file.filename=/etc/traefik/dynamic.yml"
+      - "--providers.file.watch=true"
+      - "--certificatesresolvers.letsencrypt.acme.email=${ACME_EMAIL}"
+      - "--certificatesresolvers.letsencrypt.acme.storage=/letsencrypt/acme.json"
+      - "--certificatesresolvers.letsencrypt.acme.httpchallenge.entrypoint=web"
+      - "--log.level=INFO"
+    volumes:
+      - ./traefik/dynamic.yml:/etc/traefik/dynamic.yml:ro
+      - traefik_certs:/letsencrypt
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "500m"
+        max-file: "2"
+
 volumes:
   netbird_data:
   proxy_certs:
+  traefik_certs:
 
 networks:
   netbird:
-  proxy-net:
-    external: true

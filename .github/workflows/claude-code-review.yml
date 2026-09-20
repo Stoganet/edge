@@ -37,11 +37,11 @@ jobs:
             Post inline comments ONLY for issues that must be fixed before merging:
             - Bugs or logic errors
             - Security vulnerabilities (injection, auth bypass, secret exposure, exposing a service publicly that should stay NetBird-only, etc.)
-            - Incorrect Caddy / Compose / NetBird configuration that would break TLS, routing, or the overlay
+            - Incorrect Traefik / Compose / NetBird configuration that would break TLS, routing, or the overlay
             - Direct violations of the patterns documented in CLAUDE.md or docs/architecture.md
 
             Do NOT comment on:
-            - Caddyfile or Compose formatting / style — CI already runs `caddy validate`, `docker compose config`, and shellcheck
+            - Compose formatting / style — CI already runs `docker compose config` and shellcheck
             - Subjective preferences or minor readability suggestions
             - Hypothetical future concerns without concrete evidence
             - Missing tests (this repo is infra-as-config, there are no tests)
