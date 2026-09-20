@@ -1,5 +1,4 @@
 services:
-  # UI dashboard
   dashboard:
     image: netbirdio/dashboard:latest@sha256:fa2d8b02a81761e4d2a22df4041d13316b7635f1e93273eafeb53d4991e55b5a
     container_name: netbird-dashboard
@@ -15,7 +14,6 @@ services:
         max-size: "500m"
         max-file: "2"
 
-  # Combined server (Management + Signal + Relay + STUN)
   netbird-server:
     image: netbirdio/netbird-server:latest@sha256:d1da0c0179c9e6f2ab7b48be54d06341b11037855a9426b9f2536aa79f13360b
     container_name: netbird-server
@@ -34,8 +32,34 @@ services:
         max-size: "500m"
         max-file: "2"
 
+  reverse-proxy:
+    image: netbirdio/reverse-proxy:latest@sha256:f18745746dfc797dfc60418b9c2714671aee0e020317df47fb22f37329c2dd54
+    container_name: netbird-reverse-proxy
+    restart: unless-stopped
+    profiles: ["cutover"]
+    ports:
+      - '80:80'
+      - '443:443'
+    environment:
+      NB_PROXY_CERTIFICATE_DIRECTORY: /certs
+      NB_PROXY_MANAGEMENT_ADDRESS: "${NB_MGMT_URL}"
+      NB_PROXY_ACME_CERTIFICATES: "true"
+      NB_PROXY_DOMAIN: "stoganet.com"
+      NB_PROXY_LOG_LEVEL: info
+      NB_PROXY_TOKEN: "${NB_PROXY_TOKEN}"
+      NB_PROXY_PRIVATE: "false"
+      NB_PROXY_ADDRESS: ":443"
+    volumes:
+      - proxy_certs:/certs
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "500m"
+        max-file: "2"
+
 volumes:
   netbird_data:
+  proxy_certs:
 
 networks:
   netbird:

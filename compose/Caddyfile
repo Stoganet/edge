@@ -30,11 +30,8 @@ jellyfin.{$DOMAIN} {
 			window 1m
 		}
 	}
-	reverse_proxy https://{$NETBIRD_HOME_IP} {
+	reverse_proxy http://{$NETBIRD_HOME_IP}:8096 {
 		header_up Host jellyfin.{$DOMAIN}
-		transport http {
-			tls_server_name jellyfin.{$DOMAIN}
-		}
 	}
 }
 
@@ -53,11 +50,8 @@ seerr.{$DOMAIN} {
 			window 1m
 		}
 	}
-	reverse_proxy https://{$NETBIRD_HOME_IP} {
+	reverse_proxy http://{$NETBIRD_HOME_IP}:5055 {
 		header_up Host seerr.{$DOMAIN}
-		transport http {
-			tls_server_name seerr.{$DOMAIN}
-		}
 	}
 }
 
@@ -73,10 +67,7 @@ api.{$DOMAIN} {
 			window 1m
 		}
 	}
-	reverse_proxy https://{$NETBIRD_HOME_IP} {
+	reverse_proxy http://{$NETBIRD_HOME_IP}:8090 {
 		header_up Host api.{$DOMAIN}
-		transport http {
-			tls_server_name api.{$DOMAIN}
-		}
 	}
 }
