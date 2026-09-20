@@ -1,0 +1,71 @@
+http:
+  routers:
+    traefik-dashboard:
+      rule: "PathPrefix(`/`)"
+      entryPoints: [dashboard]
+      service: api@internal
+
+    netbird-grpc:
+      rule: "Host(`netbird.stoganet.com`) && HeaderRegexp(`Content-Type`, `^application/grpc`)"
+      entryPoints: [websecure]
+      service: netbird-server-h2c
+      priority: 30
+      tls:
+        certResolver: letsencrypt
+
+    netbird-api:
+      rule: "Host(`netbird.stoganet.com`) && (PathPrefix(`/relay`) || PathPrefix(`/ws-proxy`) || PathPrefix(`/api`) || PathPrefix(`/oauth2`))"
+      entryPoints: [websecure]
+      service: netbird-server
+      priority: 20
+      tls:
+        certResolver: letsencrypt
+
+    netbird-dashboard-route:
+      rule: "Host(`netbird.stoganet.com`)"
+      entryPoints: [websecure]
+      service: netbird-dashboard-svc
+      priority: 10
+      tls:
+        certResolver: letsencrypt
+
+    http-to-https-redirect:
+      rule: "PathPrefix(`/`)"
+      entryPoints: [web]
+      service: netbird-dashboard-svc
+      middlewares: [https-redirect]
+
+  middlewares:
+    https-redirect:
+      redirectScheme:
+        scheme: https
+        permanent: true
+
+  services:
+    netbird-server-h2c:
+      loadBalancer:
+        servers:
+          - url: "h2c://netbird-server:80"
+    netbird-server:
+      loadBalancer:
+        servers:
+          - url: "http://netbird-server:80"
+    netbird-dashboard-svc:
+      loadBalancer:
+        servers:
+          - url: "http://netbird-dashboard:80"
+
+tcp:
+  routers:
+    reverse-proxy-services:
+      rule: "HostSNI(`jellyfin.stoganet.com`) || HostSNI(`seerr.stoganet.com`) || HostSNI(`api.stoganet.com`)"
+      entryPoints: [websecure]
+      service: netbird-reverse-proxy-svc
+      tls:
+        passthrough: true
+
+  services:
+    netbird-reverse-proxy-svc:
+      loadBalancer:
+        servers:
+          - address: "netbird-reverse-proxy:443"

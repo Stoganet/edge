@@ -1,7 +1,5 @@
 .env
 compose/netbird/config.yaml
-compose/caddy_data/
-compose/caddy_config/
 .agents/
 .claude/
 docs/internal

@@ -11,13 +11,6 @@
   "prHourlyLimit": 0,
   "packageRules": [
     {
-      "matchManagers": ["docker-compose", "dockerfile"],
-      "matchPackageNames": ["caddy"],
-      "groupName": "caddy",
-      "automerge": true,
-      "matchUpdateTypes": ["digest", "patch", "minor"]
-    },
-    {
       "matchManagers": ["github-actions"],
       "groupName": "github-actions",
       "automerge": true,
@@ -25,7 +18,7 @@
     },
     {
       "matchManagers": ["docker-compose", "dockerfile"],
-      "excludePackageNames": ["caddy", "netbirdio/netbird-server", "netbirdio/dashboard"],
+      "excludePackageNames": ["traefik", "netbirdio/netbird-server", "netbirdio/dashboard"],
       "groupName": "all other non-major dependencies",
       "automerge": true,
       "matchUpdateTypes": ["digest", "patch", "minor"]
@@ -34,7 +27,30 @@
       "matchManagers": ["docker-compose", "dockerfile", "custom.regex"],
       "matchDepNames": ["netbirdio/netbird", "netbirdio/netbird-server", "netbirdio/dashboard"],
       "groupName": "netbird",
+      "automerge": true,
+      "matchUpdateTypes": ["digest", "patch"]
+    },
+    {
+      "matchManagers": ["docker-compose", "dockerfile", "custom.regex"],
+      "matchDepNames": ["netbirdio/netbird", "netbirdio/netbird-server", "netbirdio/dashboard"],
+      "groupName": "netbird",
       "automerge": false,
+      "matchUpdateTypes": ["minor", "major"],
+      "labels": ["review-needed"]
+    },
+    {
+      "matchManagers": ["docker-compose", "dockerfile"],
+      "matchPackageNames": ["traefik"],
+      "groupName": "traefik",
+      "automerge": true,
+      "matchUpdateTypes": ["digest", "patch"]
+    },
+    {
+      "matchManagers": ["docker-compose", "dockerfile"],
+      "matchPackageNames": ["traefik"],
+      "groupName": "traefik",
+      "automerge": false,
+      "matchUpdateTypes": ["minor", "major"],
       "labels": ["review-needed"]
     }
   ],

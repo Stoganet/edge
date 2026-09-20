@@ -145,7 +145,7 @@ jobs:
       - name: Healthcheck
         id: healthcheck
         env:
-          HEALTHCHECK_URL_CADDY: ${{ secrets.HEALTHCHECK_URL_CADDY }}
+          HEALTHCHECK_URL_NETBIRD: ${{ secrets.HEALTHCHECK_URL_NETBIRD }}
           HEALTHCHECK_URL_API: ${{ secrets.HEALTHCHECK_URL_API }}
         run: |
           set -euo pipefail
@@ -156,14 +156,14 @@ jobs:
           }
           DEADLINE=$(( $(date +%s) + 30 ))
           while [ "$(date +%s)" -lt "$DEADLINE" ]; do
-            CADDY_OK=0
+            NETBIRD_OK=0
             API_OK=0
-            probe "$HEALTHCHECK_URL_CADDY" && CADDY_OK=1 || true
-            probe "$HEALTHCHECK_URL_API"   && API_OK=1   || true
-            if [ "$CADDY_OK" = 1 ] && [ "$API_OK" = 1 ]; then
+            probe "$HEALTHCHECK_URL_NETBIRD" && NETBIRD_OK=1 || true
+            probe "$HEALTHCHECK_URL_API"     && API_OK=1     || true
+            if [ "$NETBIRD_OK" = 1 ] && [ "$API_OK" = 1 ]; then
               exit 0
             fi
-            echo "Waiting (caddy=$CADDY_OK api=$API_OK)..."
+            echo "Waiting (netbird=$NETBIRD_OK api=$API_OK)..."
             sleep 5
           done
           echo "::error::Healthcheck failed within 30s"
@@ -176,7 +176,7 @@ jobs:
           VPS_OVERLAY_IP: ${{ secrets.VPS_OVERLAY_IP }}
           PREVIOUS_SHA: ${{ steps.previous.outputs.sha }}
           TARGET_SHA: ${{ steps.target.outputs.sha }}
-          HEALTHCHECK_URL_CADDY: ${{ secrets.HEALTHCHECK_URL_CADDY }}
+          HEALTHCHECK_URL_NETBIRD: ${{ secrets.HEALTHCHECK_URL_NETBIRD }}
           HEALTHCHECK_URL_API: ${{ secrets.HEALTHCHECK_URL_API }}
         run: |
           set -euo pipefail
@@ -198,7 +198,7 @@ jobs:
           }
           DEADLINE=$(( $(date +%s) + 30 ))
           while [ "$(date +%s)" -lt "$DEADLINE" ]; do
-            if probe "$HEALTHCHECK_URL_CADDY" && probe "$HEALTHCHECK_URL_API"; then
+            if probe "$HEALTHCHECK_URL_NETBIRD" && probe "$HEALTHCHECK_URL_API"; then
               echo "outcome=rolled-back" >> "$GITHUB_OUTPUT"
               exit 0
             fi
@@ -207,19 +207,6 @@ jobs:
           echo "::error::Healthcheck failed on rolled-back state"
           echo "outcome=rollback-failed" >> "$GITHUB_OUTPUT"
           exit 1
-
-      - name: Diagnostics
-        if: failure()
-        env:
-          VPS_OVERLAY_IP: ${{ secrets.VPS_OVERLAY_IP }}
-        run: |
-          {
-            echo "## Diagnostics"
-            echo
-            ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes -o ConnectTimeout=10 \
-              "deploy@${VPS_OVERLAY_IP}" /srv/stoganet/bin/diagnostics.sh 2>&1 \
-              || echo "_diagnostics.sh failed: $?_"
-          } | tee -a "$GITHUB_STEP_SUMMARY"
 
       - name: Summarize outcome
         if: always()

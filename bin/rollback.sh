@@ -10,5 +10,4 @@ PREVIOUS_SHA="$1"
 cd /srv/stoganet
 git checkout --quiet "$PREVIOUS_SHA"
 
-cd /srv/stoganet/compose         && docker compose up -d
 cd /srv/stoganet/compose/netbird && docker compose up -d
